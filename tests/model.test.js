@@ -13,6 +13,7 @@ const S = load("Settings.js", ["GADGETS", "findEntry", "resolveSettings", "entry
 const W = load("gadgets/weather/WeatherModel.js", ["signed", "icon", "describe", "parseForecast"])
 const H = load("gadgets/hardware/HardwareModel.js", ["gbPair", "cpuSample", "cpuPercent", "memory", "nvidia", "disk"])
 const C = load("gadgets/calendar/CalendarModel.js", ["shiftedMonth", "monthCells"])
+const R = load("gadgets/rates/RatesModel.js", ["DEFAULTS", "resolveOptions", "parseCbu", "coingeckoUrl", "parseCoingecko", "quote", "nominal", "formatAmount", "formatChange", "rows"])
 
 let failed = 0
 function test(name, fn) {
@@ -161,6 +162,105 @@ test("shiftedMonth crosses years", () => {
   const d = C.shiftedMonth(new Date(2026, 10, 8), 3)
   assert.strictEqual(d.getFullYear(), 2027)
   assert.strictEqual(d.getMonth(), 1)
+})
+
+// ---- rates
+
+// CBU's real answer for 07.11.2026 (trimmed) and a CoinGecko answer.
+const cbuText = JSON.stringify([
+  { Ccy: "USD", Nominal: "1", Rate: "11987.16", Diff: "13.68", Date: "07.11.2026" },
+  { Ccy: "RUB", Nominal: "1", Rate: "146.29", Diff: "-0.3", Date: "07.11.2026" },
+  { Ccy: "IRR", Nominal: "10", Rate: "2.85", Diff: "0", Date: "07.11.2026" }
+])
+const cgText = JSON.stringify({
+  bitcoin: { usd: 75845, usd_24h_change: 0.1817, rub: 6220597, rub_24h_change: 0.2937, uzs: 906823537, uzs_24h_change: 0.1817, last_updated_at: 1 },
+  ethereum: { usd: 2230.66, usd_24h_change: -0.06 }
+})
+const cbu = R.parseCbu(cbuText)
+const crypto = R.parseCoingecko(cgText)
+const near = (a, b, eps) => assert.ok(Math.abs(a - b) < (eps || 1e-6), a + " != " + b)
+
+test("resolveOptions defaults match the mockup", () => {
+  assert.deepStrictEqual(R.resolveOptions({}), R.DEFAULTS)
+  assert.deepStrictEqual(R.resolveOptions(null), R.DEFAULTS)
+})
+
+test("resolveOptions normalises codes and keeps coins out of tabs", () => {
+  const o = R.resolveOptions({ tabs: ["usd", "BTC", "usd", "eur"], assets: ["eth", " sol ", "x"] })
+  assert.deepStrictEqual(o.tabs, ["USD", "EUR"])
+  assert.deepStrictEqual(o.assets, ["ETH", "SOL"])
+  assert.deepStrictEqual(R.resolveOptions({ tabs: ["BTC"] }).tabs, R.DEFAULTS.tabs)
+})
+
+test("parseCbu reads rates per unit and the previous rate", () => {
+  assert.strictEqual(cbu.date, "07.11.2026")
+  assert.deepStrictEqual(cbu.rates.UZS, { rate: 1, prev: 1 })
+  near(cbu.rates.USD.rate, 11987.16)
+  near(cbu.rates.USD.prev, 11973.48)
+  near(cbu.rates.IRR.rate, 0.285)
+  assert.strictEqual(R.parseCbu("[]"), null)
+  assert.strictEqual(R.parseCbu("<html>"), null)
+})
+
+test("parseCoingecko keys by ticker", () => {
+  assert.strictEqual(crypto.BTC.uzs.price, 906823537)
+  near(crypto.BTC.rub.change, 0.2937)
+  assert.strictEqual(crypto.ETH.usd.price, 2230.66)
+  assert.strictEqual(crypto.ETH.rub, undefined)
+  assert.strictEqual(R.parseCoingecko("{}"), null)
+})
+
+test("coingeckoUrl asks for coins in every tab", () => {
+  const url = R.coingeckoUrl(["UZS", "BTC", "ETH"], ["UZS", "RUB"])
+  assert.ok(url.includes("ids=bitcoin,ethereum"))
+  assert.ok(url.includes("vs_currencies=uzs,rub,usd"))
+  assert.strictEqual(R.coingeckoUrl(["UZS", "RUB"], ["USD"]), "")
+})
+
+test("fiat cross rates go through UZS", () => {
+  near(R.quote("USD", "UZS", cbu, null).price, 11987.16)
+  near(R.quote("USD", "RUB", cbu, null).price, 81.9411, 1e-3)
+  near(R.quote("UZS", "USD", cbu, null).price, 1 / 11987.16)
+  near(R.quote("RUB", "UZS", cbu, null).change, (146.29 / 146.59 - 1) * 100)
+  assert.strictEqual(R.quote("EUR", "UZS", cbu, null), null)
+})
+
+test("crypto: direct quote, else through USD", () => {
+  assert.strictEqual(R.quote("BTC", "UZS", cbu, crypto).price, 906823537)
+  const eth = R.quote("ETH", "RUB", cbu, crypto)
+  near(eth.price, 2230.66 * 11987.16 / 146.29, 1e-6)
+  assert.ok(eth.change !== null)
+  assert.strictEqual(R.quote("BTC", "UZS", cbu, null), null)
+})
+
+test("nominal lifts tiny rates to at least 1", () => {
+  assert.strictEqual(R.nominal(146.29), 1)
+  assert.strictEqual(R.nominal(0.00684), 1000)
+  assert.strictEqual(R.nominal(1 / 11987.16), 100000)
+  assert.strictEqual(R.nominal(0), 1)
+})
+
+test("formatAmount groups thousands", () => {
+  assert.strictEqual(R.formatAmount(906823537), "906\u00A0823\u00A0537")
+  assert.strictEqual(R.formatAmount(11987.16), "11\u00A0987")
+  assert.strictEqual(R.formatAmount(146.294), "146.29")
+  assert.strictEqual(R.formatAmount(6.8357), "6.84")
+})
+
+test("formatChange arrows and rounding", () => {
+  assert.deepStrictEqual(R.formatChange(0.114), { text: "▲0.11%", direction: 1 })
+  assert.deepStrictEqual(R.formatChange(-0.2047), { text: "▼0.20%", direction: -1 })
+  assert.deepStrictEqual(R.formatChange(0.001), { text: "0.00%", direction: 0 })
+  assert.deepStrictEqual(R.formatChange(null), { text: "", direction: 0 })
+})
+
+test("rows skip the base and use a readable amount", () => {
+  const r = R.rows(R.DEFAULTS.assets, "RUB", cbu, crypto)
+  assert.deepStrictEqual(r.map(x => x.asset), ["UZS", "USD", "BTC", "ETH"])
+  assert.strictEqual(r[0].amount, "1\u00A0000")
+  assert.strictEqual(r[0].value, "6.84")
+  assert.strictEqual(r[1].value, "81.94")
+  assert.strictEqual(R.rows(["EUR"], "UZS", cbu, crypto)[0].value, "…")
 })
 
 if (failed) { console.log("\n" + failed + " failed"); process.exit(1) }

@@ -3,7 +3,7 @@
 **English** · [Русский](README.ru.md)
 
 Glass desktop gadgets for [Omarchy](https://omarchy.org/): clock, weather,
-hardware, now playing and calendar cards that live on one workspace of your
+hardware, now playing, calendar and exchange rate cards that live on one workspace of your
 choice and stay out of the way everywhere else.
 
 ![omagadgets on the home workspace](preview.png)
@@ -11,7 +11,7 @@ choice and stay out of the way everywhere else.
 The cards sit on the desktop layer, above the wallpaper and below your windows.
 They only appear while the `home` workspace (configurable) is active on a
 monitor, so the rest of your workspaces stay clean. Drag and resize them in edit
-mode; the layout is remembered. Show all five gadgets or only the ones you want.
+mode; the layout is remembered. Show all six gadgets or only the ones you want.
 
 ## Gadgets
 
@@ -22,6 +22,7 @@ mode; the layout is remembered. Show all five gadgets or only the ones you want.
 | **Hardware** | CPU load and temperature, RAM, GPU load and temperature, VRAM, and disk usage of `/`. |
 | **Now playing** | Track and artist from any MPRIS player, previous / play-pause / next buttons, and a live audio visualizer. |
 | **Calendar** | The current month with today highlighted. Page with ‹ ›; click the month title to jump back. |
+| **Rates** | Fiat and crypto prices in the currency picked by the tabs (UZS / RUB / USD by default), with the daily change. Fiat from the [Central Bank of Uzbekistan](https://cbu.uz/) (official rates, refreshed every 3 hours, cross rates through UZS), crypto from [CoinGecko](https://www.coingecko.com/) (every 5 minutes). Tiny rates are shown per 1 000 or 100 000 units so they stay readable. |
 
 ## Features
 
@@ -35,13 +36,15 @@ mode; the layout is remembered. Show all five gadgets or only the ones you want.
   (or the one you set).
 - **Click-through:** only the media buttons and calendar arrows take clicks;
   everything else passes through to the desktop.
+- **Works offline:** the last exchange rates are cached and shown straight away
+  after a restart.
 - **Battery-friendly:** nothing polls while the cards are hidden, and a
   runtime-suspended NVIDIA GPU is not woken up (it reads "sleep").
 
 ## Requirements
 
 - Omarchy with `omarchy-shell`, on Hyprland.
-- `curl` for the weather and `cava` for the visualizer:
+- `curl` for the weather and exchange rates, and `cava` for the visualizer:
   ```bash
   omarchy pkg add cava
   ```
@@ -129,8 +132,25 @@ apply as soon as you save:
 
 | Key | Default | Description |
 |---|---|---|
-| `gadgets` | all five | Which gadgets to show: any of `"clock"`, `"weather"`, `"hardware"`, `"media"`, `"calendar"`. Order doesn't matter; unknown names are ignored. `[]` hides them all. |
+| `gadgets` | all six | Which gadgets to show: any of `"clock"`, `"weather"`, `"hardware"`, `"media"`, `"calendar"`, `"rates"`. Order doesn't matter; unknown names are ignored. `[]` hides them all. |
 | `workspace` | `"home"` | Name of the workspace the gadgets appear on. |
+| `rates` | see below | Settings of the rates gadget. |
+
+### Rates
+
+```json
+"rates": {
+  "tabs": ["UZS", "RUB", "USD"],
+  "assets": ["UZS", "RUB", "USD", "BTC", "ETH"]
+}
+```
+
+| Key | Default | Description |
+|---|---|---|
+| `tabs` | `["UZS", "RUB", "USD"]` | Currencies to show prices in, one tab each: `UZS` or any currency the Central Bank of Uzbekistan quotes (`EUR`, `KZT`, `CNY`, …). |
+| `assets` | `["UZS", "RUB", "USD", "BTC", "ETH"]` | Rows of the card. The selected tab is skipped. Fiat codes as above, or a coin: `BTC`, `ETH`, `USDT`, `SOL`, `TON`, `BNB`, `XRP`, `DOGE`, `TRX`, `ADA`, `LTC`. |
+
+The selected tab is remembered across restarts.
 
 ## Files
 
@@ -138,6 +158,8 @@ apply as soon as you save:
 |---|---|
 | `~/.config/omarchy/omagadgets.json` | Card positions and sizes by gadget (`{ "clock": { "x": 0.5, "y": 0.2, "scale": 1 }, … }`), written by edit mode. Delete it to reset the layout. |
 | `~/.local/state/omagadgets/editing` | Edit mode flag (`1` / `0`). |
+| `~/.local/state/omagadgets/rates-base` | The rates gadget's selected tab. |
+| `~/.cache/omagadgets/rates.json` | Last exchange rates, shown until fresh ones arrive. |
 
 ## Project structure
 
@@ -159,6 +181,7 @@ gadgets/
   hardware/          Hardware.qml, Meter.qml, HardwareModel.js
   media/             Media.qml
   calendar/          Calendar.qml, CalendarModel.js
+  rates/             Rates.qml, RatesModel.js
 tests/               node tests for the pure logic
 omagadgets-edit      edit mode toggle script
 ```
@@ -174,7 +197,8 @@ registers QML types in directories it reaches through `import` statements.
 
 ## Development
 
-Run the tests for the pure logic (settings, weather, hardware parsing, calendar):
+Run the tests for the pure logic (settings, weather, hardware parsing, calendar,
+exchange rates):
 
 ```bash
 node tests/model.test.js

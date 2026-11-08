@@ -5,7 +5,7 @@
 
 // Every gadget, in drawing order. Each one lives in gadgets/<id>/ with a
 // <Id>.qml entry point (see entryFile).
-var GADGETS = ["clock", "weather", "hardware", "media", "calendar"]
+var GADGETS = ["clock", "weather", "hardware", "media", "calendar", "rates"]
 
 var DEFAULTS = {
   workspace: "home",   // named workspace the gadgets appear on

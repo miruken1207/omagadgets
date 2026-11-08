@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "id": "miruken1207.omagadgets",
   "name": "omagadgets",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": "Mirzabek Rakhimov",
-  "description": "Glass desktop gadgets for a named workspace: clock, weather, hardware, now playing and calendar cards you can drag and resize",
+  "description": "Glass desktop gadgets for a named workspace: clock, weather, hardware, now playing, calendar and exchange rate cards you can drag and resize",
   "kinds": [
     "service"
   ],

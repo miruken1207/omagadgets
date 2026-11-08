@@ -12,6 +12,7 @@ import "gadgets/weather"
 import "gadgets/hardware"
 import "gadgets/media"
 import "gadgets/calendar"
+import "gadgets/rates"
 
 // One full-screen surface per monitor on the Bottom layer (above the
 // wallpaper, under windows), shown while that monitor's active workspace is
@@ -49,7 +50,7 @@ PanelWindow {
   // Clicks fall through to the desktop except on each gadget's clickArea,
   // and everywhere while editing.
   property Region clickInput: Region {
-    regions: [clockSlot.region, weatherSlot.region, hardwareSlot.region, mediaSlot.region, calendarSlot.region]
+    regions: [clockSlot.region, weatherSlot.region, hardwareSlot.region, mediaSlot.region, calendarSlot.region, ratesSlot.region]
   }
   mask: editing ? null : clickInput
   visible: shown || content.opacity > 0
@@ -111,5 +112,6 @@ PanelWindow {
     GadgetSlot { id: hardwareSlot; gadget: "hardware"; window: surface; area: content }
     GadgetSlot { id: mediaSlot; gadget: "media"; window: surface; area: content }
     GadgetSlot { id: calendarSlot; gadget: "calendar"; window: surface; area: content }
+    GadgetSlot { id: ratesSlot; gadget: "rates"; window: surface; area: content }
   }
 }
