@@ -1,11 +1,14 @@
 #!/bin/bash
 # Toggle omagadgets edit mode (drag and resize the cards).
-# Turning it on also goes to the home workspace, where the gadgets live.
+# Turning it on also goes to the gadgets' workspace ("workspace" in the
+# plugin's shell.json entry, "home" by default).
 flag="$HOME/.local/state/omagadgets/editing"
+config="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/shell.json"
 mkdir -p "${flag%/*}"
 if [[ $(cat "$flag" 2>/dev/null) == 1 ]]; then
   echo 0 > "$flag"
 else
-  hyprctl dispatch 'hl.dsp.focus({ workspace = "name:home" })' >/dev/null
+  workspace=$(jq -r '[.plugins[]? | select(.id == "miruken1207.omagadgets") | .workspace // empty][0] // "home"' "$config" 2>/dev/null)
+  hyprctl dispatch "hl.dsp.focus({ workspace = \"name:${workspace:-home}\" })" >/dev/null
   echo 1 > "$flag"
 fi
