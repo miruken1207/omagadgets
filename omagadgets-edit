@@ -1,0 +1,11 @@
+#!/bin/bash
+# Toggle omagadgets edit mode (drag and resize the cards).
+# Turning it on also goes to the home workspace, where the gadgets live.
+flag="$HOME/.local/state/omagadgets/editing"
+mkdir -p "${flag%/*}"
+if [[ $(cat "$flag" 2>/dev/null) == 1 ]]; then
+  echo 0 > "$flag"
+else
+  hyprctl dispatch 'hl.dsp.focus({ workspace = "name:home" })' >/dev/null
+  echo 1 > "$flag"
+fi

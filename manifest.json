@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "miruken1207.omagadgets",
+  "name": "omagadgets",
+  "version": "0.2.0",
+  "author": "Mirzabek Rakhimov",
+  "description": "Glass desktop gadgets for a named workspace: clock, weather, hardware, now playing and calendar cards you can drag and resize",
+  "kinds": [
+    "service"
+  ],
+  "entryPoints": {
+    "service": "Service.qml"
+  },
+  "homepage": "https://github.com/miruken1207/omagadgets"
+}
